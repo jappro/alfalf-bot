@@ -283,6 +283,37 @@ bot.on('callback_query', async (query) => {
     await generateCampaign(chatId);
     return;
   }
+
+  // No-reward path buttons
+  if (data === 'no_refine') {
+    userStates[chatId] = { ...state, step: 'awaiting_refinement' };
+    bot.editMessageText(`🔧 Let's refine your campaign.`, {
+      chat_id: chatId,
+      message_id: query.message.message_id
+    });
+    bot.sendMessage(chatId, REFINE_MESSAGE);
+    return;
+  }
+
+  if (data === 'no_new') {
+    delete userStates[chatId];
+    bot.editMessageText(`🧪 Starting fresh.`, {
+      chat_id: chatId,
+      message_id: query.message.message_id
+    });
+    bot.sendMessage(chatId, WELCOME_MESSAGE);
+    return;
+  }
+
+  if (data === 'no_close') {
+    delete userStates[chatId];
+    bot.editMessageText(`✅ Session closed.`, {
+      chat_id: chatId,
+      message_id: query.message.message_id
+    });
+    bot.sendMessage(chatId, `Got it 👍\n\nWhenever you're ready to design or test a new campaign, just hit /start.`);
+    return;
+  }
 });
 
 bot.onText(/\/start/, (msg) => {
@@ -371,7 +402,6 @@ bot.on('message', async (msg) => {
     try {
       const lastCampaign = state?.lastCampaign || '';
 
-      // Step 1: Get tier structure from AI as JSON
       const tierResponse = await groq.chat.completions.create({
         model: 'llama-3.3-70b-versatile',
         messages: [
@@ -396,10 +426,8 @@ bot.on('message', async (msg) => {
         return;
       }
 
-      // Step 2: Calculate payouts in backend
       const breakdown = calculateRewardBreakdown(tiers, parsed.pool);
 
-      // Step 3: Get analysis from AI
       const analysisResponse = await groq.chat.completions.create({
         model: 'llama-3.3-70b-versatile',
         messages: [
@@ -453,8 +481,16 @@ Example:
     }
 
     if (isNo) {
-      delete userStates[chatId];
-      bot.sendMessage(chatId, `Got it 👍\n\nIf you want to refine the campaign or test another idea, just send a new brief.`);
+      userStates[chatId] = { ...state, step: 'awaiting_no_action' };
+      bot.sendMessage(chatId, `Got it 👍\n\nWhat would you like to do next?`, {
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: '🔧 Refine Campaign', callback_data: 'no_refine' }],
+            [{ text: '🧪 Test New Campaign', callback_data: 'no_new' }],
+            [{ text: '❌ Close', callback_data: 'no_close' }]
+          ]
+        }
+      });
       return;
     }
 
