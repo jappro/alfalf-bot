@@ -6,7 +6,9 @@ const ALFALF_SYSTEM_PROMPT = require('./prompt');
 const bot = new TelegramBot(process.env.BOT_TOKEN, { polling: true });
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
-const BASE_URL = `http://localhost:${process.env.PORT || 3000}`;
+const BASE_URL = process.env.NODE_ENV === 'production'
+  ? 'https://alfalf-bot-production.up.railway.app'
+  : `http://localhost:${process.env.PORT || 3000}`;
 
 const WELCOME_MESSAGE = `
 🌱 Welcome to Alfalf AI
