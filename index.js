@@ -1,9 +1,12 @@
 const TelegramBot = require('node-telegram-bot-api');
 const Groq = require('groq-sdk');
+const fetch = require('node-fetch');
 const ALFALF_SYSTEM_PROMPT = require('./prompt');
 
 const bot = new TelegramBot(process.env.BOT_TOKEN, { polling: true });
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+
+const BASE_URL = `http://localhost:${process.env.PORT || 3000}`;
 
 const WELCOME_MESSAGE = `
 🌱 Welcome to Alfalf AI
@@ -40,27 +43,6 @@ Want to go deeper? Here's what I can help you refine:
 Just tell me what you'd like to optimize — or send a new project brief to start fresh.
 `;
 
-const REWARD_PROMPT = `
-You are Alfalf AI — a Reward Structure Architect for Web3 campaigns.
-Design fair, strategic reward systems that encourage real participation and discourage farming and favoritism.
-
-You will receive the campaign context and the reward pool details.
-Return ONLY a valid JSON array of tier objects. No explanation. No text. No markdown. Only raw JSON.
-
-Format exactly like this:
-[
-  { "range": "1-5", "percentage": 40, "winners": 5 },
-  { "range": "6-20", "percentage": 35, "winners": 15 },
-  { "range": "21-50", "percentage": 25, "winners": 30 }
-]
-
-Rules:
-- Percentages must add up to exactly 100
-- Winners in each range must add up to total winners provided
-- Choose tiers that make sense for the campaign context
-- Never return anything except the JSON array
-`;
-
 const REWARD_ANALYSIS_PROMPT = `
 You are Alfalf AI — a Reward Structure Architect for Web3 campaigns.
 You will receive a reward tier breakdown with exact dollar calculations already done.
@@ -90,28 +72,6 @@ State clearly if raffle fits or not, and why.
 One key insight on fairness or retention value. 2–3 sentences maximum.
 `;
 
-const REFINEMENT_PROMPT = `
-You are Alfalf AI — a Campaign Intelligence System for Web3 projects.
-You are NOT generating a new campaign. You are refining an existing one.
-
-You will receive:
-- The original campaign structure that was already generated
-- A specific refinement goal from the user
-
-Your job is to provide targeted improvements only.
-Focus exclusively on the refinement goal requested.
-Do not regenerate the full campaign.
-Do not repeat sections that don't need changing.
-
-Output format:
-- 5 to 10 bullet points maximum
-- Each point must be a specific, actionable improvement
-- Reference specific parts of the original campaign where relevant
-- Feel like editing a system, not recreating it
-
-Tone: Direct. Strategic. Specific. No fluff.
-`;
-
 const userStates = {};
 
 function sendLongMessage(chatId, text) {
@@ -131,24 +91,6 @@ function parseRewardInput(text) {
   const winners = parseInt(winnersMatch[1].replace(/,/g, ''));
   if (isNaN(pool) || isNaN(winners) || pool <= 0 || winners <= 0) return null;
   return { pool, winners };
-}
-
-function calculateRewardBreakdown(tiers, totalPool) {
-  let output = '';
-  let totalPayout = 0;
-  let totalWinners = 0;
-
-  for (const tier of tiers) {
-    const tierTotal = (tier.percentage / 100) * totalPool;
-    const perUser = Math.round((tierTotal / tier.winners) * 100) / 100;
-    totalPayout += perUser * tier.winners;
-    totalWinners += tier.winners;
-    output += `Winners ${tier.range} → $${perUser} each\n`;
-  }
-
-  output += `Total Winners → ${totalWinners}\n`;
-  output += `Total Payout → $${Math.round(totalPayout * 100) / 100}`;
-  return output;
 }
 
 function showProjectTypeButtons(chatId) {
@@ -197,37 +139,40 @@ async function generateCampaign(chatId) {
   bot.sendChatAction(chatId, 'typing');
   bot.sendMessage(chatId, '⚙️ Alfalf AI is designing your campaign system...');
 
-  const userInput = `
-Project: ${state.project}
-Goal: ${state.goal}
-Duration: ${state.duration}
-Project Type: ${state.projectType}
-Platform: ${state.platform}
-  `.trim();
-
   try {
-    const response = await groq.chat.completions.create({
-      model: 'llama-3.3-70b-versatile',
-      messages: [
-        { role: 'system', content: ALFALF_SYSTEM_PROMPT },
-        { role: 'user', content: userInput }
-      ],
-      temperature: 0.7,
-      max_tokens: 1800,
+    const response = await fetch(`${BASE_URL}/api/campaign`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        userId: String(chatId),
+        projectName: state.project,
+        goal: state.goal,
+        duration: state.duration,
+        projectType: state.projectType,
+        platform: state.platform
+      })
     });
 
-    const result = response.choices[0]?.message?.content;
+    const data = await response.json();
 
-    if (result) {
-      sendLongMessage(chatId, result);
+    if (data.campaignOutput) {
+      sendLongMessage(chatId, data.campaignOutput);
+
       userStates[chatId] = {
         step: 'awaiting_reward_confirmation',
-        lastCampaign: result,
-        lastInput: userInput
+        lastCampaign: data.campaignOutput,
+        lastInput: `Project: ${state.project}`,
+        campaignId: data.campaignId
       };
+
+      setTimeout(() => {
+        bot.sendMessage(chatId, `🔗 View your campaign audit:\nhttps://alfalf-audit.vercel.app/campaign/${data.campaignId}`);
+      }, 800);
+
       setTimeout(() => {
         bot.sendMessage(chatId, REWARD_QUESTION);
-      }, 1000);
+      }, 1600);
+
     } else {
       bot.sendMessage(chatId, '⚠️ Something went wrong. Please try again.');
     }
@@ -353,22 +298,18 @@ bot.on('message', async (msg) => {
     bot.sendMessage(chatId, '🔧 Refining your campaign...');
 
     try {
-      const response = await groq.chat.completions.create({
-        model: 'llama-3.3-70b-versatile',
-        messages: [
-          { role: 'system', content: REFINEMENT_PROMPT },
-          {
-            role: 'user',
-            content: `Original campaign:\n${state.lastCampaign}\n\nRefinement goal: ${text}`
-          }
-        ],
-        temperature: 0.7,
-        max_tokens: 1000,
+      const campaignId = state?.campaignId;
+
+      const response = await fetch(`${BASE_URL}/api/campaign/${campaignId}/refine`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: text })
       });
 
-      const result = response.choices[0]?.message?.content;
-      if (result) {
-        sendLongMessage(chatId, result);
+      const data = await response.json();
+
+      if (data.output) {
+        sendLongMessage(chatId, data.output);
         userStates[chatId] = { ...state, step: 'awaiting_refinement' };
         setTimeout(() => {
           bot.sendMessage(chatId, REFINE_MESSAGE);
@@ -400,56 +341,53 @@ bot.on('message', async (msg) => {
     bot.sendMessage(chatId, '⚙️ Alfalf AI is designing your reward structure...');
 
     try {
+      const campaignId = state?.campaignId;
       const lastCampaign = state?.lastCampaign || '';
 
-      const tierResponse = await groq.chat.completions.create({
-        model: 'llama-3.3-70b-versatile',
-        messages: [
-          { role: 'system', content: REWARD_PROMPT },
-          {
-            role: 'user',
-            content: `Campaign context:\n${lastCampaign}\n\nReward pool: $${parsed.pool}\nNumber of winners: ${parsed.winners}`
-          }
-        ],
-        temperature: 0.5,
-        max_tokens: 500,
+      const response = await fetch(`${BASE_URL}/api/campaign/${campaignId}/reward`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rewardPool: parsed.pool, winners: parsed.winners })
       });
 
-      const tierRaw = tierResponse.choices[0]?.message?.content?.trim();
+      const data = await response.json();
 
-      let tiers;
-      try {
-        const cleaned = tierRaw.replace(/```json|```/g, '').trim();
-        tiers = JSON.parse(cleaned);
-      } catch (e) {
-        bot.sendMessage(chatId, '⚠️ Could not calculate reward structure. Please try again.');
-        return;
-      }
+      if (data.tiers) {
+        let breakdown = '📊 Practical Breakdown:\n';
+        for (const tier of data.tiers) {
+          breakdown += `Winners ${tier.range} → $${tier.perUser} each\n`;
+        }
+        breakdown += `Total Winners → ${data.totalWinners}\n`;
+        breakdown += `Total Payout → $${data.rewardPool}`;
 
-      const breakdown = calculateRewardBreakdown(tiers, parsed.pool);
+        // Get analysis from AI
+        const analysisResponse = await groq.chat.completions.create({
+          model: 'llama-3.3-70b-versatile',
+          messages: [
+            { role: 'system', content: REWARD_ANALYSIS_PROMPT },
+            {
+              role: 'user',
+              content: `Campaign context:\n${lastCampaign}\n\nReward pool: $${parsed.pool}\nNumber of winners: ${parsed.winners}\n\nCalculated breakdown:\n${breakdown}`
+            }
+          ],
+          temperature: 0.7,
+          max_tokens: 1000,
+        });
 
-      const analysisResponse = await groq.chat.completions.create({
-        model: 'llama-3.3-70b-versatile',
-        messages: [
-          { role: 'system', content: REWARD_ANALYSIS_PROMPT },
-          {
-            role: 'user',
-            content: `Campaign context:\n${lastCampaign}\n\nReward pool: $${parsed.pool}\nNumber of winners: ${parsed.winners}\n\nCalculated breakdown:\n${breakdown}`
-          }
-        ],
-        temperature: 0.7,
-        max_tokens: 1000,
-      });
+        const analysis = analysisResponse.choices[0]?.message?.content;
 
-      const analysis = analysisResponse.choices[0]?.message?.content;
+        if (analysis) {
+          const fullOutput = `${breakdown}\n\n${analysis}`;
+          sendLongMessage(chatId, fullOutput);
+        } else {
+          sendLongMessage(chatId, breakdown);
+        }
 
-      if (analysis) {
-        const fullOutput = `📊 Practical Breakdown:\n${breakdown}\n\n${analysis}`;
-        sendLongMessage(chatId, fullOutput);
         userStates[chatId] = { ...state, step: 'awaiting_refinement' };
         setTimeout(() => {
           bot.sendMessage(chatId, REFINE_MESSAGE);
         }, 2000);
+
       } else {
         bot.sendMessage(chatId, '⚠️ Something went wrong. Please try again.');
       }
