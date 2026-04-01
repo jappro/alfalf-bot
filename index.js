@@ -42,7 +42,20 @@ Want to go deeper? Here's what I can help you refine:
 - Adjust reward structure
 - Rethink a weak phase
 
-Just tell me what you'd like to optimize — or send a new project brief to start fresh.
+Just tell me what you'd like to optimize — or say NO if you don't want any refinement.
+`;
+
+const REFINE_INCORRECT = `
+⚠️ Incorrect input.
+
+Here's what I can help you refine:
+
+- Improve retention design
+- Reduce farming risk
+- Adjust reward structure
+- Rethink a weak phase
+
+Pick an option and write it down — I will refine that part for you.
 `;
 
 const REWARD_ANALYSIS_PROMPT = `
@@ -74,7 +87,31 @@ State clearly if raffle fits or not, and why.
 One key insight on fairness or retention value. 2–3 sentences maximum.
 `;
 
+const VALID_REFINEMENTS = [
+  'improve retention design',
+  'retention design',
+  'reduce farming risk',
+  'farming risk',
+  'adjust reward structure',
+  'reward structure',
+  'rethink a weak phase',
+  'weak phase'
+];
+
 const userStates = {};
+const processedCallbacks = new Set();
+
+function showPostRefinementButtons(chatId) {
+  bot.sendMessage(chatId, `What would you like to do next?`, {
+    reply_markup: {
+      inline_keyboard: [
+        [{ text: '🔧 Want Refinement', callback_data: 'refine_again' }],
+        [{ text: '🧪 Test New Campaign', callback_data: 'refine_new' }],
+        [{ text: '❌ Close', callback_data: 'refine_close' }]
+      ]
+    }
+  });
+}
 
 function sendLongMessage(chatId, text) {
   const maxLength = 4000;
@@ -188,21 +225,25 @@ async function generateCampaign(chatId) {
 bot.on('callback_query', async (query) => {
   const chatId = query.message.chat.id;
   const data = query.data;
+  const callbackId = query.id;
 
-  bot.answerCallbackQuery(query.id);
+  // Deduplicate callbacks
+  if (processedCallbacks.has(callbackId)) return;
+  processedCallbacks.add(callbackId);
+  setTimeout(() => processedCallbacks.delete(callbackId), 10000);
+
+  bot.answerCallbackQuery(callbackId);
 
   const state = userStates[chatId];
 
   // Project type selection
   if (data.startsWith('type_')) {
     const selected = data.replace('type_', '');
-
     if (selected === 'Custom') {
       userStates[chatId] = { ...state, step: 'awaiting_custom_type' };
       bot.sendMessage(chatId, '✏️ Please type your custom project type:');
       return;
     }
-
     userStates[chatId] = { ...state, projectType: selected, step: 'awaiting_platform' };
     bot.editMessageText(`✅ Project type: ${selected}`, {
       chat_id: chatId,
@@ -215,13 +256,11 @@ bot.on('callback_query', async (query) => {
   // Platform selection
   if (data.startsWith('platform_')) {
     const selected = data.replace('platform_', '');
-
     if (selected === 'Custom') {
       userStates[chatId] = { ...state, step: 'awaiting_custom_platform' };
       bot.sendMessage(chatId, '✏️ Please type your custom campaign platform:');
       return;
     }
-
     userStates[chatId] = { ...state, platform: selected, step: 'generating' };
     bot.editMessageText(`✅ Platform: ${selected}`, {
       chat_id: chatId,
@@ -231,7 +270,7 @@ bot.on('callback_query', async (query) => {
     return;
   }
 
-  // No-reward path buttons
+  // No-reward path buttons (unchanged)
   if (data === 'no_refine') {
     userStates[chatId] = { ...state, step: 'awaiting_refinement' };
     bot.editMessageText(`🔧 Let's refine your campaign.`, {
@@ -261,11 +300,49 @@ bot.on('callback_query', async (query) => {
     bot.sendMessage(chatId, `Got it 👍\n\nWhenever you're ready to design or test a new campaign, just hit /start.`);
     return;
   }
+
+  // Post-refinement buttons
+  if (data === 'refine_again') {
+    userStates[chatId] = { ...state, step: 'awaiting_refinement' };
+    bot.editMessageText(`🔧 Let's refine further.`, {
+      chat_id: chatId,
+      message_id: query.message.message_id
+    });
+    bot.sendMessage(chatId, REFINE_MESSAGE);
+    return;
+  }
+
+  if (data === 'refine_new') {
+    delete userStates[chatId];
+    bot.editMessageText(`🧪 Starting fresh.`, {
+      chat_id: chatId,
+      message_id: query.message.message_id
+    });
+    bot.sendMessage(chatId, WELCOME_MESSAGE);
+    return;
+  }
+
+  if (data === 'refine_close') {
+    delete userStates[chatId];
+    bot.editMessageText(`✅ Session closed.`, {
+      chat_id: chatId,
+      message_id: query.message.message_id
+    });
+    bot.sendMessage(chatId, `Got it 👍\n\nWhenever you're ready to design or test a new campaign, just hit /start.`);
+    return;
+  }
 });
 
 bot.onText(/\/start/, (msg) => {
-  delete userStates[msg.chat.id];
-  bot.sendMessage(msg.chat.id, WELCOME_MESSAGE);
+  const chatId = msg.chat.id;
+  // Prevent duplicate welcome messages
+  if (userStates[chatId]?._startSent) return;
+  delete userStates[chatId];
+  userStates[chatId] = { _startSent: true };
+  setTimeout(() => {
+    if (userStates[chatId]?._startSent) delete userStates[chatId];
+  }, 3000);
+  bot.sendMessage(chatId, WELCOME_MESSAGE);
 });
 
 bot.on('message', async (msg) => {
@@ -295,6 +372,25 @@ bot.on('message', async (msg) => {
 
   // Refinement flow
   if (step === 'awaiting_refinement') {
+    const cleaned = text.toLowerCase().trim();
+    const isNo = ['no', 'n', 'nah', 'nope'].includes(cleaned);
+
+    // User says no to refinement
+    if (isNo) {
+      userStates[chatId] = { ...state, step: null };
+      showPostRefinementButtons(chatId);
+      return;
+    }
+
+    // Check if input is a valid refinement option
+    const isValidRefinement = VALID_REFINEMENTS.some(r => cleaned.includes(r));
+
+    if (!isValidRefinement) {
+      bot.sendMessage(chatId, REFINE_INCORRECT);
+      return;
+    }
+
+    // Valid refinement — process it
     userStates[chatId].step = null;
     bot.sendChatAction(chatId, 'typing');
     bot.sendMessage(chatId, '🔧 Refining your campaign...');
@@ -312,10 +408,10 @@ bot.on('message', async (msg) => {
 
       if (data.output) {
         sendLongMessage(chatId, data.output);
-        userStates[chatId] = { ...state, step: 'awaiting_refinement' };
+        userStates[chatId] = { ...state, step: null };
         setTimeout(() => {
-          bot.sendMessage(chatId, REFINE_MESSAGE);
-        }, 1000);
+          showPostRefinementButtons(chatId);
+        }, 1500);
       } else {
         bot.sendMessage(chatId, '⚠️ Something went wrong. Please try again.');
       }
@@ -362,7 +458,6 @@ bot.on('message', async (msg) => {
         breakdown += `Total Winners → ${data.totalWinners}\n`;
         breakdown += `Total Payout → $${data.rewardPool}`;
 
-        // Get analysis from AI
         const analysisResponse = await groq.chat.completions.create({
           model: 'llama-3.3-70b-versatile',
           messages: [
@@ -377,13 +472,8 @@ bot.on('message', async (msg) => {
         });
 
         const analysis = analysisResponse.choices[0]?.message?.content;
-
-        if (analysis) {
-          const fullOutput = `${breakdown}\n\n${analysis}`;
-          sendLongMessage(chatId, fullOutput);
-        } else {
-          sendLongMessage(chatId, breakdown);
-        }
+        const fullOutput = analysis ? `${breakdown}\n\n${analysis}` : breakdown;
+        sendLongMessage(chatId, fullOutput);
 
         userStates[chatId] = { ...state, step: 'awaiting_refinement' };
         setTimeout(() => {
@@ -457,7 +547,6 @@ Duration: 3 weeks`);
     return;
   }
 
-  // Parse campaign input
   const projectMatch = text.match(/project:\s*(.+)/i);
   const goalMatch = text.match(/goal:\s*(.+)/i);
   const durationMatch = text.match(/duration:\s*(.+)/i);
