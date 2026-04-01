@@ -100,6 +100,7 @@ const VALID_REFINEMENTS = [
 
 const userStates = {};
 const processedCallbacks = new Set();
+const userLocks = {};
 
 function showPostRefinementButtons(chatId) {
   bot.sendMessage(chatId, `What would you like to do next?`, {
@@ -227,10 +228,22 @@ bot.on('callback_query', async (query) => {
   const data = query.data;
   const callbackId = query.id;
 
-  // Deduplicate callbacks
-  if (processedCallbacks.has(callbackId)) return;
+  // Deduplicate by callback ID
+  if (processedCallbacks.has(callbackId)) {
+    bot.answerCallbackQuery(callbackId);
+    return;
+  }
   processedCallbacks.add(callbackId);
   setTimeout(() => processedCallbacks.delete(callbackId), 10000);
+
+  // Per-user action lock — prevents duplicate sends for same user + same button
+  const lockKey = `${chatId}_${data}`;
+  if (userLocks[lockKey]) {
+    bot.answerCallbackQuery(callbackId);
+    return;
+  }
+  userLocks[lockKey] = true;
+  setTimeout(() => delete userLocks[lockKey], 5000);
 
   bot.answerCallbackQuery(callbackId);
 
@@ -270,7 +283,7 @@ bot.on('callback_query', async (query) => {
     return;
   }
 
-  // No-reward path buttons (unchanged)
+  // No-reward path buttons
   if (data === 'no_refine') {
     userStates[chatId] = { ...state, step: 'awaiting_refinement' };
     bot.editMessageText(`🔧 Let's refine your campaign.`, {
@@ -335,7 +348,6 @@ bot.on('callback_query', async (query) => {
 
 bot.onText(/\/start/, (msg) => {
   const chatId = msg.chat.id;
-  // Prevent duplicate welcome messages
   if (userStates[chatId]?._startSent) return;
   delete userStates[chatId];
   userStates[chatId] = { _startSent: true };
@@ -370,19 +382,17 @@ bot.on('message', async (msg) => {
     return;
   }
 
-  // Refinement flow
+  // Refinement flow — catches ALL input, never falls through
   if (step === 'awaiting_refinement') {
     const cleaned = text.toLowerCase().trim();
     const isNo = ['no', 'n', 'nah', 'nope'].includes(cleaned);
 
-    // User says no to refinement
     if (isNo) {
       userStates[chatId] = { ...state, step: null };
       showPostRefinementButtons(chatId);
       return;
     }
 
-    // Check if input is a valid refinement option
     const isValidRefinement = VALID_REFINEMENTS.some(r => cleaned.includes(r));
 
     if (!isValidRefinement) {
@@ -390,7 +400,6 @@ bot.on('message', async (msg) => {
       return;
     }
 
-    // Valid refinement — process it
     userStates[chatId].step = null;
     bot.sendChatAction(chatId, 'typing');
     bot.sendMessage(chatId, '🔧 Refining your campaign...');
@@ -414,10 +423,12 @@ bot.on('message', async (msg) => {
         }, 1500);
       } else {
         bot.sendMessage(chatId, '⚠️ Something went wrong. Please try again.');
+        userStates[chatId] = { ...state, step: 'awaiting_refinement' };
       }
     } catch (error) {
       console.error('Refinement error:', error);
       bot.sendMessage(chatId, '⚠️ Something went wrong. Please try again.');
+      userStates[chatId] = { ...state, step: 'awaiting_refinement' };
     }
     return;
   }
