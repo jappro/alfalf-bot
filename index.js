@@ -540,6 +540,12 @@ Example:
   }
 
   // Default: expect new campaign input
+  // Only fires when user has NO active state
+  if (step) {
+    // User is mid-flow but sent something unrecognized — ignore silently
+    return;
+  }
+
   const hasProject = text.toLowerCase().includes('project:');
   const hasGoal = text.toLowerCase().includes('goal:');
   const hasDuration = text.toLowerCase().includes('duration:');
