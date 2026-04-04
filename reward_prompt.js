@@ -125,3 +125,5 @@ FORMAT RULES
 - Use plain text + emojis
 - Be concise and sharp
 `;
+
+module.exports = REWARD_ANALYSIS_PROMPT;
