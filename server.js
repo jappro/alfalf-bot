@@ -101,6 +101,31 @@ Your output is INVALID if:
 
 If invalid → regenerate internally before responding
 
+---
+
+ADDITIONAL INTELLIGENCE RULES:
+
+8. REWARD GAP CONTROL
+- Reward differences between tiers must feel motivating, not punishing
+- Avoid extreme drop-offs (>3x difference between adjacent tiers)
+- Mid-tier must still feel competitive
+
+---
+
+9. BOTTOM TIER CONTROL
+- Bottom tier should NOT feel like a participation reward
+- If bottom tier is too large → reduce its percentage
+- If farming risk is high → compress or remove weak tiers
+
+---
+
+10. CONTEXT ALIGNMENT (MANDATORY)
+- If campaign requires effort → increase top-tier rewards AND strengthen mid-tier
+- If campaign is low-effort → reduce number of winners OR compress lower tiers
+- If retention-focused → avoid overly top-heavy distributions
+
+You MUST reflect campaign structure in reward logic.
+
 ━━━━━━━━━━━━━━━━━━━
 FINAL RULE
 ━━━━━━━━━━━━━━━━━━━
