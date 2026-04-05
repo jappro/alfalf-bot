@@ -141,6 +141,47 @@ If necessary:
 Goal:
 Every rewarded position must feel earned and valuable.
 
+---
+
+13. TIER SCALING WITH VALUE CONTROL (MANDATORY)
+
+Tier count must follow BOTH winner count AND reward quality:
+
+---
+
+A. BASE RULE (WINNER COUNT)
+
+- Winners ≤ 30 → 3–4 tiers
+- Winners 31–100 → 4–5 tiers (MAX 5 — do NOT exceed)
+- Winners > 100 → 5–7 tiers allowed
+
+---
+
+B. VALUE CONTROL OVERRIDE
+
+Calculate reward quality (reward pool ÷ winners):
+
+- If per-user reward is LOW:
+  → REDUCE number of tiers
+  → compress lower tiers
+  → avoid spreading rewards thin
+
+- If per-user reward is HIGH:
+  → INCREASE tier granularity (especially top tiers)
+
+---
+
+C. HARD CONSTRAINTS
+
+- Do NOT use 6+ tiers if winners ≤ 100
+- Do NOT increase tiers if it causes meaningless low-value rewards
+- More tiers = more precision, NOT more dilution
+
+---
+
+Goal:
+Maintain meaningful rewards while scaling competitive depth.
+
 ━━━━━━━━━━━━━━━━━━━
 FINAL RULE
 ━━━━━━━━━━━━━━━━━━━
