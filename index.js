@@ -2,6 +2,7 @@ const TelegramBot = require('node-telegram-bot-api');
 const Groq = require('groq-sdk');
 const fetch = require('node-fetch');
 const ALFALF_SYSTEM_PROMPT = require('./prompt');
+const REWARD_ANALYSIS_PROMPT = require('./reward_prompt');
 
 const bot = new TelegramBot(process.env.BOT_TOKEN, { polling: true });
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
@@ -56,35 +57,6 @@ Here's what I can help you refine:
 - Rethink a weak phase
 
 Pick an option and write it down — I will refine that part for you.
-`;
-
-const REWARD_ANALYSIS_PROMPT = `
-You are Alfalf AI — a Reward Structure Architect for Web3 campaigns.
-You will receive a reward tier breakdown with exact dollar calculations already done.
-Your job is to analyze the structure and provide strategic commentary only.
-
-Provide exactly these sections:
-
-1. 🏆 Recommended Model
-State which reward model this represents and why it fits the campaign.
-Choose from: Tiered distribution, Hybrid leaderboard + raffle, Broad participation, Contribution-based.
-
-2. ⚠️ Favoritism Risk Flags
-Identify if the structure could be exploited by internal teams.
-Suggest transparency measures.
-
-3. 🤖 Farming Risk Flags
-Identify if the structure encourages multi-accounting or bot farming.
-Suggest effort-based qualifications.
-
-4. 🎲 Raffle Evaluation
-NOT every campaign deserves a raffle. Evaluate carefully.
-Raffle works for high-volume, contribution-based, broad participation campaigns.
-Raffle does not work for low-effort tasks, small pools, or quality-focused campaigns.
-State clearly if raffle fits or not, and why.
-
-5. ⚠️ Insight
-One key insight on fairness or retention value. 2–3 sentences maximum.
 `;
 
 const VALID_REFINEMENTS = [
