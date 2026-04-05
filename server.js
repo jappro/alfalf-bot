@@ -3,30 +3,13 @@ const cors = require('cors');
 const Groq = require('groq-sdk');
 const db = require('./database');
 const ALFALF_SYSTEM_PROMPT = require('./prompt');
+const REWARD_ANALYSIS_PROMPT = require('./reward_prompt');
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
-
-const REWARD_PROMPT = `
-You are Alfalf AI — a Reward Structure Architect for Web3 campaigns.
-Return ONLY a valid JSON array of tier objects. No explanation. No text. No markdown. Only raw JSON.
-
-Format exactly like this:
-[
-  { "range": "1-5", "percentage": 40, "winners": 5 },
-  { "range": "6-20", "percentage": 35, "winners": 15 },
-  { "range": "21-50", "percentage": 25, "winners": 30 }
-]
-
-Rules:
-- Percentages must add up to exactly 100
-- Winners in each range must add up to total winners provided
-- Choose tiers that make sense for the campaign context
-- Never return anything except the JSON array
-`;
 
 const REFINEMENT_PROMPT = `
 You are Alfalf AI — a Campaign Intelligence System for Web3 projects.
