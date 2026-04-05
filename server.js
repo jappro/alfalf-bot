@@ -126,6 +126,21 @@ ADDITIONAL INTELLIGENCE RULES:
 
 You MUST reflect campaign structure in reward logic.
 
+---
+
+11. WINNER COUNT CONTROL
+
+If total winners is too high relative to reward pool:
+- REDUCE effective competitive tiers
+- Concentrate meaningful rewards in top and mid tiers
+- Bottom tier must not exceed 40% of total winners
+
+If necessary:
+- compress lower tiers instead of spreading rewards thin
+
+Goal:
+Every rewarded position must feel earned and valuable.
+
 ━━━━━━━━━━━━━━━━━━━
 FINAL RULE
 ━━━━━━━━━━━━━━━━━━━
