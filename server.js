@@ -23,164 +23,133 @@ OUTPUT FORMAT (STRICT)
 
 Return ONLY a JSON array like this:
 [
-  { "range": "1-5", "percentage": 40, "winners": 5 },
-  { "range": "6-20", "percentage": 35, "winners": 15 },
-  { "range": "21-50", "percentage": 25, "winners": 30 }
+  { "range": "1-3", "percentage": 25, "winners": 3 },
+  { "range": "4-10", "percentage": 35, "winners": 7 },
+  { "range": "11-30", "percentage": 40, "winners": 20 }
 ]
 
 No text. No markdown. No comments.
 
 ━━━━━━━━━━━━━━━━━━━
-CORE DISTRIBUTION RULES
+CORE INTELLIGENCE
 ━━━━━━━━━━━━━━━━━━━
 
-1. NO FLAT DISTRIBUTION
-- NEVER assign equal percentage per winner across all tiers
-- Every tier MUST have different reward weight
+1. CALCULATE AVERAGE REWARD
 
-If all users get similar value → output is INVALID
+Average reward = Reward Pool ÷ Total Winners
 
----
+Classify:
 
-2. TOP-HEAVY OR BALANCED (MANDATORY DECISION)
+- ≤ $5 → UNFAIR
+- $6–$10 → MEDIUM
+- $10–$15 → FAIR
+- $20–$30 → STRONG
+- $50+ → EPIC
 
-You MUST choose ONE:
-
-A. Performance-driven campaigns → TOP-HEAVY
-- Top 10–20% get 40–60% of rewards
-
-B. Broad participation campaigns → BALANCED
-- Top 20–40% get 30–50%
-- Mid tiers meaningful
-- Bottom tier smaller but not zero
-
-DO NOT default to equal splits
+This classification CONTROLS:
+- number of tiers
+- depth of distribution
+- first tier structure
 
 ---
 
-3. MINIMUM 3 TIERS (REQUIRED)
-- Small campaigns (<50 winners) → 3 tiers
-- Medium (50–200) → 3–4 tiers
-- Large (200+) → up to 5 tiers
+2. TIER COUNT (MANDATORY)
+
+You MUST follow:
+
+- Winners ≤ 50:
+  → 3–4 tiers
+  → If UNFAIR → force 3 tiers
+
+- Winners 60–100:
+  → default 5 tiers
+  → If UNFAIR or MEDIUM → reduce to 4 tiers
+  → If EPIC → increase up to 6–7 tiers
+
+- Winners > 100:
+  → minimum 6 tiers
+  → increase tiers gradually based on reward strength
+
+DO NOT fix tiers at 4.
 
 ---
 
-4. REALISTIC WINNER DISTRIBUTION
-- Top tier must feel exclusive (small % of winners)
-- Mid tiers must carry meaningful share
-- Bottom tier must NOT dominate reward pool
+3. FIRST TIER STRUCTURE (CRITICAL)
 
-Bad:
-- 70% of users sharing 70% of rewards
+You MUST design first tier intentionally:
 
----
+- Default:
+  → use 1–3 winners
 
-5. PERCENTAGE RULES
-- Total must equal EXACTLY 100
-- No tier below 5% unless very large pool
-- No tier above 60%
+- If reward is STRONG or EPIC:
+  → 1–3 can be hierarchical (rank 1 highest)
 
----
+- If reward is FAIR or below:
+  → 1–3 MUST be equal split
 
-6. STRUCTURAL INTELLIGENCE
-Use campaign context:
+- Use 1–5 ONLY when distribution needs broader competition
+  → always equal split
 
-- If tasks require effort / skill → increase top-tier weight
-- If campaign is participation-heavy → expand mid tiers
-- If farming risk is high → reduce bottom-tier rewards
+- NEVER use 1–10 unless reward is low
 
 ---
 
-7. HARD VALIDATION
+4. DISTRIBUTION SHAPE
+
+Choose ONE:
+
+A. Competitive (top-heavy)
+- Top performers earn significantly more
+
+B. Balanced
+- Mid tiers are strong
+- Bottom tier smaller but still meaningful
+
+Match this to campaign context.
+
+---
+
+5. NO DUST RULE (MANDATORY)
+
+You MUST prevent meaningless rewards:
+
+- No tier should result in extremely low payouts
+- Avoid creating tiers where users earn trivial value
+
+If average reward is low:
+→ reduce tiers instead of spreading thin
+
+---
+
+6. WINNER DISTRIBUTION RULES
+
+- First tier = small and exclusive
+- Every tier after first must have ≥ 3 winners
+- Avoid large bottom-heavy tiers
+- Bottom tier must NOT exceed 40% of total winners
+
+---
+
+7. PERCENTAGE RULES
+
+- Total = EXACTLY 100
+- Top tier: 15–35%
+- Mid tiers carry meaningful weight
+- Bottom tier must be smaller than mid tiers
+
+---
+
+8. STRUCTURAL VALIDATION
 
 Your output is INVALID if:
-- Percentages ≠ 100
-- Winners ≠ total winners
-- Rewards are flat or near-equal
-- Only 1–2 tiers exist
+- tiers are fixed regardless of input
+- distribution is flat
+- bottom tier dominates
+- rewards become meaningless due to over-splitting
 
-If invalid → regenerate internally before responding
-
----
-
-ADDITIONAL INTELLIGENCE RULES:
-
-8. REWARD GAP CONTROL
-- Reward differences between tiers must feel motivating, not punishing
-- Avoid extreme drop-offs (>3x difference between adjacent tiers)
-- Mid-tier must still feel competitive
+If invalid → regenerate internally
 
 ---
-
-9. BOTTOM TIER CONTROL
-- Bottom tier should NOT feel like a participation reward
-- If bottom tier is too large → reduce its percentage
-- If farming risk is high → compress or remove weak tiers
-
----
-
-10. CONTEXT ALIGNMENT (MANDATORY)
-- If campaign requires effort → increase top-tier rewards AND strengthen mid-tier
-- If campaign is low-effort → reduce number of winners OR compress lower tiers
-- If retention-focused → avoid overly top-heavy distributions
-
-You MUST reflect campaign structure in reward logic.
-
----
-
-11. WINNER COUNT CONTROL
-
-If total winners is too high relative to reward pool:
-- REDUCE effective competitive tiers
-- Concentrate meaningful rewards in top and mid tiers
-- Bottom tier must not exceed 40% of total winners
-
-If necessary:
-- compress lower tiers instead of spreading rewards thin
-
-Goal:
-Every rewarded position must feel earned and valuable.
-
----
-
-13. TIER SCALING WITH VALUE CONTROL (MANDATORY)
-
-Tier count must follow BOTH winner count AND reward quality:
-
----
-
-A. BASE RULE (WINNER COUNT)
-
-- Winners ≤ 30 → 3–4 tiers
-- Winners 31–100 → 4–5 tiers (MAX 5 — do NOT exceed)
-- Winners > 100 → 5–7 tiers allowed
-
----
-
-B. VALUE CONTROL OVERRIDE
-
-Calculate reward quality (reward pool ÷ winners):
-
-- If per-user reward is LOW:
-  → REDUCE number of tiers
-  → compress lower tiers
-  → avoid spreading rewards thin
-
-- If per-user reward is HIGH:
-  → INCREASE tier granularity (especially top tiers)
-
----
-
-C. HARD CONSTRAINTS
-
-- Do NOT use 6+ tiers if winners ≤ 100
-- Do NOT increase tiers if it causes meaningless low-value rewards
-- More tiers = more precision, NOT more dilution
-
----
-
-Goal:
-Maintain meaningful rewards while scaling competitive depth.
 
 ━━━━━━━━━━━━━━━━━━━
 FINAL RULE
