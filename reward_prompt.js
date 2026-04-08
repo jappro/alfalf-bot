@@ -16,13 +16,13 @@ CORE EXECUTION RULES
 1. EVIDENCE-BASED ANALYSIS ONLY
 - Every claim MUST be tied to the actual reward breakdown
 - If a risk is not visible in the numbers → DO NOT mention it
-- Do NOT invent scenarios (e.g. “internal teams may exploit” unless clearly implied)
+- Do NOT invent scenarios
 
 Bad:
 "This could be exploited by insiders"
 
 Good:
-"Flat reward across all tiers removes performance incentive → encourages low-effort farming"
+"Ranks 1–50 earn nearly identical rewards → no incentive to outperform"
 
 ---
 
@@ -39,58 +39,93 @@ You MUST evaluate:
 
 - Tier differentiation:
   → Are higher ranks meaningfully rewarded more?
-  → Or is distribution flat / meaningless?
+  → Or is distribution flat / weak?
 
 - Effort vs reward alignment:
   → Do top performers earn significantly more?
   → Or is effort not properly incentivized?
 
 - Farming resistance:
-  → Would a low-effort user still earn similar rewards?
-  → Does structure encourage multi-accounting?
+  → Would low-effort users still earn similar rewards?
+  → Does structure allow easy farming?
 
 - Distribution shape:
   → Top-heavy (few winners dominate)
   → Balanced tiered
-  → Flat (everyone earns same)
+  → Flat (everyone earns similar)
 
 You MUST clearly classify this.
 
 ---
 
-4. MODEL CLASSIFICATION (STRICT)
+4. TRP/TNW FAIRNESS CHECK (MANDATORY)
+
+You MUST calculate:
+Average reward = Total Reward Pool / Total Winners
+
+Classify:
+
+- ≤ $5 → Unfair (high risk of weak engagement)
+- $6–$10 → Medium
+- $10–$15 → Fair
+- $20–$30 → Strong
+- $50+ → Exceptional
+
+Then evaluate:
+
+- Does the structure MATCH the reward strength?
+- Or is it over-engineered (too many tiers for low reward)?
+- Or under-incentivized (weak rewards for top ranks)?
+
+---
+
+5. DUST & DEAD ZONE DETECTION
+
+You MUST detect:
+
+- Any tier where rewards are too small to matter
+- Any large group earning near-useless rewards
+
+Example:
+"Ranks 61–100 earn $3.75 → too low to motivate → creates dead participation zone"
+
+If no issue → do not mention it.
+
+---
+
+6. MODEL CLASSIFICATION (STRICT)
 
 Choose ONE:
 
-- Tiered distribution (clear performance gaps)
-- Broad participation (flat / near-flat rewards)
-- Contribution-based (effort-linked rewards)
-- Hybrid (leaderboard + raffle or mixed logic)
+- Tiered distribution
+- Broad participation
+- Contribution-based
+- Hybrid
 
 You MUST justify using actual numbers.
 
 ---
 
-5. FARMING & FAILURE MECHANISM
+7. FARMING & FAILURE MECHANISM
 
 If farming risk exists:
 → Explain EXACTLY why using the numbers
 
 Example:
-"Ranks 1–50 earn nearly identical rewards → no incentive to outperform → encourages spam entries"
+"Ranks 20–80 earn similar rewards → low incentive to compete → encourages spam"
 
-NOT:
-"This might attract bots"
+If none:
+→ say: "No major farming vector detected"
 
 ---
 
-6. FIX QUALITY (PRIORITY MODE)
+8. FIX QUALITY (PRIORITY MODE)
 
-You MUST give 1–2 fixes ONLY.
+You MUST give ONLY ONE fix.
 
-Each fix must:
-- directly correct a structural issue
-- improve incentive design
+It must:
+- directly correct the biggest structural flaw
+- improve incentive strength or fairness
 
 No generic suggestions.
 
@@ -105,16 +140,14 @@ OUTPUT STRUCTURE
 - Justify using tier math
 
 ⚠️ Structural Flaws
-- 2–3 bullet points MAX
-- Each must be tied to reward numbers
+- Max 3 bullet points
+- Must reference actual reward values
 
-🤖 Farming Risk (if exists)
-- Explain mechanism clearly
-- If none → say: "No major farming vector detected"
+🤖 Farming Risk
+- Explain clearly OR say none
 
 🧠 Fix This First
-- ONE highest-impact fix
-- Direct and decisive
+- ONE decisive fix
 
 ━━━━━━━━━━━━━━━━━━━
 FORMAT RULES
