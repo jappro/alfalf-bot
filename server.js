@@ -171,21 +171,59 @@ Output: 5 to 10 bullet points maximum. Each point must be specific and actionabl
 Tone: Direct. Strategic. Specific. No fluff.
 `;
 
-function calculateRewards(pool, tiers) {
+function calculateRewards(pool, tiers, totalWinners) {
   let totalPct = 0;
-  let totalWinners = 0;
+  let totalWinnersCheck = 0;
 
   for (const tier of tiers) {
     totalPct += tier.percentage;
-    totalWinners += tier.winners;
+    totalWinnersCheck += tier.winners;
   }
 
+  // ❌ Reject invalid totals
   if (Math.abs(totalPct - 100) > 0.1) return null;
+  if (totalWinnersCheck !== totalWinners) return null;
 
+  const avgReward = pool / totalWinners;
+
+  // 🚨 RULE 1: Tier Count Enforcement
+  if (totalWinners <= 50 && tiers.length > 4) return null;
+  if (totalWinners >= 60 && totalWinners <= 100 && tiers.length < 4) return null;
+  if (totalWinners > 100 && tiers.length < 6) return null;
+
+  // 🚨 RULE 2: Reject lazy 4-tier for 100 winners (your main issue)
+  if (totalWinners >= 80 && totalWinners <= 100 && tiers.length === 4 && avgReward >= 10) {
+    return null;
+  }
+
+  // 🚨 RULE 3: No dust rewards
+  for (const tier of tiers) {
+    const tierTotal = (tier.percentage / 100) * pool;
+    const perUser = tierTotal / tier.winners;
+
+    if (avgReward >= 5 && perUser < 5) {
+      return null; // reject dust tiers
+    }
+  }
+
+  // 🚨 RULE 4: Bottom tier control (anti farming)
+  const lastTier = tiers[tiers.length - 1];
+  if (lastTier.winners > totalWinners * 0.4) return null;
+
+  // 🚨 RULE 5: Every non-first tier must have at least 3 winners
+  for (let i = 1; i < tiers.length; i++) {
+    if (tiers[i].winners < 3) return null;
+  }
+
+  // ✅ If passed all checks → calculate values
   return tiers.map(tier => {
     const tierTotal = (tier.percentage / 100) * pool;
     const perUser = parseFloat((tierTotal / tier.winners).toFixed(2));
-    return { ...tier, tierTotal: parseFloat(tierTotal.toFixed(2)), perUser };
+    return {
+      ...tier,
+      tierTotal: parseFloat(tierTotal.toFixed(2)),
+      perUser
+    };
   });
 }
 
@@ -287,7 +325,7 @@ app.post('/api/campaign/:id/reward', async (req, res) => {
       try {
         const cleaned = raw.replace(/```json|```/g, '').trim();
         const parsed = JSON.parse(cleaned);
-        const calculated = calculateRewards(rewardPool, parsed);
+        const calculated = calculateRewards(rewardPool, parsed, winners);
         if (calculated) tiers = { raw: parsed, calculated };
       } catch (e) {
         console.error('Tier parse error attempt', attempts, e);
