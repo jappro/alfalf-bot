@@ -232,6 +232,92 @@ function extractScore(campaignOutput) {
   return match ? parseFloat(match[1]) : null;
 }
 
+function generateFallbackTiers(pool, winners) {
+  const avg = pool / winners;
+
+  // 🎯 Determine reward strength
+  let strength = 'UNFAIR';
+  if (avg > 5) strength = 'MEDIUM';
+  if (avg >= 10) strength = 'FAIR';
+  if (avg >= 20) strength = 'STRONG';
+  if (avg >= 50) strength = 'EPIC';
+
+  // 🎯 Determine tier count
+  let tierCount = 4;
+
+  if (winners <= 50) {
+    tierCount = strength === 'UNFAIR' ? 3 : 4;
+  } else if (winners <= 100) {
+    tierCount = 5;
+    if (strength === 'UNFAIR' || strength === 'MEDIUM') tierCount = 4;
+    if (strength === 'EPIC') tierCount = 6;
+  } else {
+    tierCount = 6 + Math.floor((winners - 100) / 100);
+  }
+
+  // 🎯 Build winner distribution
+  const tiers = [];
+  let remainingWinners = winners;
+
+  // First tier → always 1–3 (equal split)
+  const firstTierWinners = winners >= 3 ? 3 : 1;
+  tiers.push({
+    range: `1-${firstTierWinners}`,
+    winners: firstTierWinners,
+    percentage: strength === 'EPIC' ? 25 : 20
+  });
+
+  remainingWinners -= firstTierWinners;
+
+  // Remaining tiers
+  const remainingTiers = tierCount - 1;
+  const baseWinnersPerTier = Math.floor(remainingWinners / remainingTiers);
+
+  let currentStart = firstTierWinners + 1;
+
+  for (let i = 0; i < remainingTiers; i++) {
+    let tierWinners = baseWinnersPerTier;
+
+    if (i === remainingTiers - 1) {
+      tierWinners = remainingWinners;
+    }
+
+    const start = currentStart;
+    const end = currentStart + tierWinners - 1;
+
+    tiers.push({
+      range: `${start}-${end}`,
+      winners: tierWinners,
+      percentage: 0 // assign later
+    });
+
+    currentStart = end + 1;
+    remainingWinners -= tierWinners;
+  }
+
+  // 🎯 Assign percentages (balanced curve)
+  let remainingPct = 100 - tiers[0].percentage;
+
+  const weights = [];
+  for (let i = 0; i < remainingTiers; i++) {
+    weights.push(remainingTiers - i); // descending weight
+  }
+
+  const totalWeight = weights.reduce((a, b) => a + b, 0);
+
+  for (let i = 0; i < remainingTiers; i++) {
+    const pct = (weights[i] / totalWeight) * remainingPct;
+    tiers[i + 1].percentage = parseFloat(pct.toFixed(2));
+  }
+
+  // Fix rounding drift
+  const totalPct = tiers.reduce((sum, t) => sum + t.percentage, 0);
+  const diff = parseFloat((100 - totalPct).toFixed(2));
+  tiers[tiers.length - 1].percentage += diff;
+
+  return tiers;
+}
+
 // ── ROUTES ──
 
 // Health check
@@ -332,20 +418,29 @@ app.post('/api/campaign/:id/reward', async (req, res) => {
       }
     }
 
-    if (!tiers) return res.status(500).json({ error: 'Could not generate valid reward structure after 3 attempts' });
+    if (!tiers) {
+  console.log('⚠️ AI failed — using fallback generator');
 
-    db.saveReward(campaignId, {
-      rewardPool,
-      totalWinners: winners,
-      distributionJson: tiers.raw,
-      calculatedBreakdown: tiers.calculated
-    });
+  const fallback = generateFallbackTiers(rewardPool, winners);
+  const calculated = calculateRewards(rewardPool, fallback, winners);
 
-    res.json({
-      rewardPool,
-      totalWinners: winners,
-      tiers: tiers.calculated
-    });
+  if (!calculated) {
+    return res.status(500).json({ error: 'Fallback generation failed' });
+  }
+
+  db.saveReward(campaignId, {
+    rewardPool,
+    totalWinners: winners,
+    distributionJson: fallback,
+    calculatedBreakdown: calculated
+  });
+
+  return res.json({
+    rewardPool,
+    totalWinners: winners,
+    tiers: calculated
+  });
+}
 
   } catch (err) {
     console.error('Reward error:', err);
